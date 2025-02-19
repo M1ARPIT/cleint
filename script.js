@@ -3,8 +3,6 @@
 document.addEventListener("DOMContentLoaded", () => {
     console.log("🚀 DOM Fully Loaded!");
 });
-
-// const socket = new WebSocket("");
 const socket = new WebSocket("wss://https://backend-gilt-iota.vercel.app/");
 
 
