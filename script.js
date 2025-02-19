@@ -3,7 +3,7 @@
 document.addEventListener("DOMContentLoaded", () => {
     console.log("🚀 DOM Fully Loaded!");
 });
-const socket = new WebSocket("wss://https://backend-gilt-iota.vercel.app/");
+const socket = new WebSocket("wss://backendf-3gnl.onrender.com");
 
 
 let playerRole = null;
