@@ -4,7 +4,9 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("🚀 DOM Fully Loaded!");
 });
 
-const socket = new WebSocket("https://backend-gilt-iota.vercel.app/");
+// const socket = new WebSocket("");
+const socket = new WebSocket("wss://https://backend-gilt-iota.vercel.app/");
+
 
 let playerRole = null;
 let playerScore = 0;
