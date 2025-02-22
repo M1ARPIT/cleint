@@ -201,7 +201,6 @@ document.addEventListener("DOMContentLoaded", () => {
         let text = document.getElementById("room-id-text").textContent.trim();
         let roomId = text.split(": ").pop(); 
         navigator.clipboard.writeText(roomId).then(() => {
-            // Optional: Feedback popup
             showPopup(`✅ Room ID copied: ${roomId}`);
         }).catch(err => {
             console.error("❌ Copy Failed!", err);
