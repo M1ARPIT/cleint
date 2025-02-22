@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("🚀 DOM Fully Loaded!");
 
     // Correct WebSocket URL for your Render server
-    const socket = new WebSocket("wss://backend-ewas.onrender.com");
+    const socket = new WebSocket("wss://backend-ewas.onrender.com"); 
 
     let playerRole = null;
     let playerScore = 0;
@@ -112,11 +112,9 @@ document.addEventListener("DOMContentLoaded", () => {
             showPopup("⏳ Please wait, connecting to server...");
         }
     };
-
     window.joinFriendGame = () => {
         console.log("joinFriendGame function called!");
         const roomId = popup("Enter Room ID:");
-        console.log("Entered Room ID:", roomId);
         if (roomId && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: "JOIN_ROOM", roomId }));
             console.log("Room join request sent!");
@@ -125,7 +123,6 @@ document.addEventListener("DOMContentLoaded", () => {
             showPopup("⏳ Please wait, connecting to server...");
         }
     };
-
     window.findStranger = () => {
         if (socket.readyState === WebSocket.OPEN) {
             showLoadingPopup("🔍 Finding a Stranger...");
