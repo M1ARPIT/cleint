@@ -124,12 +124,18 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     window.findStranger = () => {
+        if (socket.readyState === WebSocket.CONNECTING) {
+            console.warn("⏳ WebSocket is still connecting. Retrying in 500ms...");
+            setTimeout(window.findStranger, 500);
+            return;
+        }
+        
         if (socket.readyState === WebSocket.OPEN) {
             showLoadingPopup("🔍 Finding a Stranger...");
             socket.send(JSON.stringify({ type: "FIND_STRANGER" }));
         } else {
-            console.log("⏳ WebSocket not ready yet!");
-            showPopup("⏳ Please wait, connecting to server...");
+            console.error("❌ WebSocket is not connected!");
+            showPopup("❌ Connection lost! Please refresh and try again.");
         }
     };
 
