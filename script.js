@@ -68,158 +68,79 @@ document.addEventListener("DOMContentLoaded", () => {
             resetGame();
         }
     };
-
-    // Helper Functions
+    function loadSound(url) {
+        const audio = new Audio(url);
+        console.log(`Loading sound: ${url}`);
+        audio.preload = "auto";
+        audio.onerror = () => console.warn(`⚠️ Failed to load sound: ${url}`);
+        audio.onloadeddata = () => console.log(`✅ Sound loaded: ${url}`);
+        audio.load();
+        return audio;
+    }
+    
+    const sounds = {
+        roundStart: loadSound("sound/roundstart.mp3"),
+        roundEnd: loadSound("sound/roundend.mp3"),
+        moveSelect: loadSound("sound/movu.mp3"),
+        win: loadSound("sound/winner.mp3"),
+        lose: loadSound("sound/losser.mp3"),
+        draw: loadSound("sound/moves.mp3"),
+        disconnect: loadSound("sound/dissconnect.mp3")
+    };
+    Object.values(sounds).forEach(sound => {
+        sound.preload = "auto";
+    });
+    
     function updateScore(winner) {
-        if (winner === playerRole) {
+        if (winner === "reset") {
+            playerScore = 0;
+            opponentScore = 0;
+        } else if (winner === playerRole) {
             playerScore++;
         } else if (winner !== "draw") {
             opponentScore++;
         }
+        
         document.getElementById("score").innerText = `You: ${playerScore} | Opponent: ${opponentScore}`;
     }
-
+    
     function sendMove(move) {
         console.log(`📤 Move Sent -> ${move}`);
+        sounds.moveSelect.play();
         if (isAIMode) {
             playWithAI(move);
-        } else if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: "MOVE", move }));
         } else {
-            console.log("⏳ WebSocket not ready yet!");
-            showPopup("⏳ Please wait, connecting to server...");
+            socket.send(JSON.stringify({ type: "MOVE", move }));
         }
     }
-
+    
     function startGame() {
         document.getElementById("menu").classList.add("hidden");
         document.getElementById("game").classList.remove("hidden");
     }
-
+    
     function resetGame() {
         playerScore = 0;
         opponentScore = 0;
         roundCount = 0;
         document.getElementById("score").innerText = `You: 0 | Opponent: 0`;
     }
-
-    // Button Functions with WebSocket State Check
-    window.startFriendGame = () => {
-        if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: "CREATE_ROOM" }));
-        } else {
-            console.log("⏳ WebSocket not ready yet!");
-            showPopup("⏳ Please wait, connecting to server...");
-        }
-    };
+    
+    window.startFriendGame = () => socket.send(JSON.stringify({ type: "CREATE_ROOM" }));
     window.joinFriendGame = () => {
-        console.log("joinFriendGame function called!");
-        const roomId = popup("Enter Room ID:");
-        if (roomId && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: "JOIN_ROOM", roomId }));
-            console.log("Room join request sent!");
-        } else if (roomId) {
-            console.log("⏳ WebSocket not ready yet!");
-            showPopup("⏳ Please wait, connecting to server...");
-        }
+        const roomId = prompt("Enter Room ID:");
+        if (roomId) socket.send(JSON.stringify({ type: "JOIN_ROOM", roomId }));
     };
     window.findStranger = () => {
-        if (socket.readyState === WebSocket.CONNECTING) {
-            console.warn("⏳ WebSocket is still connecting. Retrying in 500ms...");
-            setTimeout(window.findStranger, 500);
-            return;
-        }
-        
-        if (socket.readyState === WebSocket.OPEN) {
-            showLoadingPopup("🔍 Finding a Stranger...");
-            socket.send(JSON.stringify({ type: "FIND_STRANGER" }));
-        } else {
-            console.error("❌ WebSocket is not connected!");
-            showPopup("❌ Connection lost! Please refresh and try again.");
-        }
+        showLoadingPopup("🔍 Finding a Stranger...");
+        socket.send(JSON.stringify({ type: "FIND_STRANGER" }));
     };
-
-    // AI Mode Functions
-    window.startAIGame = () => {
-        console.log("🤖 Starting AI Game...");
-        isAIMode = true;
-        playerScore = 0;
-        opponentScore = 0;
-        roundCount = 0;
-        updateScore("reset");
-        startGame();
-    };
-
-    function playWithAI(playerMove) {
-        let moves = ["rock", "paper", "scissors"];
-        let aiMove = moves[Math.floor(Math.random() * moves.length)];
-
-        console.log(`🤖 AI Move -> ${aiMove}`);
-        console.log(`🆚 You: ${playerMove} | AI: ${aiMove}`);
-
-        document.getElementById("your-move").innerText = `You chose: ${playerMove}`;
-        document.getElementById("opponent-move").innerText = `AI chose: ${aiMove}`;
-
-        let winner = decideWinner(playerMove, aiMove);
-        updateScore(winner);
-        roundCount++;
-
-        if (roundCount >= 3) {
-            const resultMessage = playerScore > opponentScore ? "🎉 You Won!" : 
-                                  playerScore === opponentScore ? "🤝 It's a Draw!" : "💀 You Lost!";
-            showEndPopup(resultMessage);
-        }
-    }
-
-    function decideWinner(playerMove, aiMove) {
-        if (playerMove === aiMove) return "draw";
-        if ((playerMove === "rock" && aiMove === "scissors") ||
-            (playerMove === "paper" && aiMove === "rock") ||
-            (playerMove === "scissors" && aiMove === "paper")) {
-            return "p1";
-        } else {
-            return "p2";
-        }
-    }
-
-    // Popup Functions
-    function showPopup(message, roomId = null) {
-        if (document.getElementById("roomPopup")) return;
-
-        const popup = document.createElement("div");
-        popup.id = "roomPopup";
-        popup.className = "popup-container";
-        popup.innerHTML = `
-            <h2>${message}</h2>
-            ${roomId ? `<p class="room-id">Room ID: <span id="room-id-text">${roomId}</span></p>` : ""}
-            <div class="popup-buttons">
-                ${roomId ? `<button class="copy-btn" onclick="copyRoomID()">📋 Copy</button>` : ""}
-                <button class="close-btn" onclick="closePopup()">❌ Close</button>
-            </div>
-        `;
-        document.body.appendChild(popup);
-    }
-
-    function copyRoomID() {
-        let text = document.getElementById("room-id-text").textContent.trim();
-        let roomId = text.split(": ").pop(); 
-        navigator.clipboard.writeText(roomId).then(() => {
-            showPopup(`✅ Room ID copied: ${roomId}`);
-        }).catch(err => {
-            console.error("❌ Copy Failed!", err);
-            showPopup("❌ Copy Failed!");
-        });
-    }
-
-    function closePopup() {
-        const popup = document.getElementById("roomPopup");
-        if (popup) popup.remove();
-    }
-
+    
+    // **Loading Popup Functions**
     function showLoadingPopup(message) {
         const existingPopup = document.getElementById("loadingPopup");
         if (existingPopup) existingPopup.remove();
-
+    
         const popup = document.createElement("div");
         popup.id = "loadingPopup";
         popup.className = "popup-overlay";
@@ -232,42 +153,200 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
         document.body.appendChild(popup);
     }
-
+    
     function hideLoadingPopup() {
         const popup = document.getElementById("loadingPopup");
         if (popup) popup.remove();
     }
-
-    function showEndPopup(message) {
+    
+    // **Round Start Popup**
+    function showRoundPopup(message) {
+        const existingPopup = document.getElementById("roundPopup");
+        if (existingPopup) existingPopup.remove();
+    
         const popup = document.createElement("div");
-        popup.className = "popup-overlay";
+        popup.id = "roundPopup";
+        popup.className = "popup-overlay round-popup";
         popup.innerHTML = `
             <div class="popup">
                 <h2>${message}</h2>
-                <button onclick="goToMenu()">🏠 Main Menu</button>
-                <button onclick="retryGame()">🔄 Retry</button>
+            </div>
+        `;
+        document.body.appendChild(popup);
+    
+        setTimeout(() => {
+            const popupToRemove = document.getElementById("roundPopup");
+            if (popupToRemove) popupToRemove.remove();
+        }, 1500);
+    }
+    
+    // **Round Result Popup**
+    function showRoundResultPopup(message) {
+        const existingPopup = document.getElementById("roundResultPopup");
+        if (existingPopup) existingPopup.remove();
+    
+        const popup = document.createElement("div");
+        popup.id = "roundResultPopup";
+        popup.className = "popup-overlay round-popup";
+        popup.innerHTML = `
+            <div class="popup">
+                <h2>${message}</h2>
+            </div>
+        `;
+        document.body.appendChild(popup);
+    
+        setTimeout(() => {
+            const popupToRemove = document.getElementById("roundResultPopup");
+            if (popupToRemove) popupToRemove.remove();
+        }, 1500);
+    }
+    
+    // AI Game Mode with 3 Rounds
+    window.startAIGame = () => {
+        console.log("🤖 Starting AI Game...");
+        isAIMode = true;
+        playerScore = 0;
+        opponentScore = 0;
+        roundCount = 0;
+    
+        console.log("🔄 Resetting Scores...");
+        updateScore("reset");
+        startGame();
+        showRoundPopup("Round 1 Started");
+        sounds.roundStart.play();
+    };
+    
+    function playWithAI(playerMove) {
+        let moves = ["rock", "paper", "scissors"];
+        let aiMove = moves[Math.floor(Math.random() * moves.length)];
+    
+        console.log(`🤖 AI Move -> ${aiMove}`);
+        console.log(`🆚 You: ${playerMove} | AI: ${aiMove}`);
+    
+        document.getElementById("your-move").innerText = `You chose: ${playerMove}`;
+        document.getElementById("opponent-move").innerText = `AI chose: ${aiMove}`;
+    
+        let winner = decideWinner(playerMove, aiMove);
+        updateScore(winner);
+        roundCount++;
+    
+        const resultMessage = winner === "player" ? `You Won Round ${roundCount}!` : 
+                             winner === "draw" ? `Round ${roundCount}: Draw!` : `AI Won Round ${roundCount}!`;
+        showRoundResultPopup(resultMessage);
+        sounds.roundEnd.play();
+    
+        if (roundCount < 3) {
+            setTimeout(() => {
+                showRoundPopup(`Round ${roundCount + 1} Started`);
+                sounds.roundStart.play();
+            }, 1500);
+        }
+    
+        if (roundCount >= 3) {
+            const resultMessage = playerScore > opponentScore ? "🎉 You Won!" : playerScore === opponentScore ? "🤝 It's a Draw!" : "💀 You Lost!";
+            showEndPopup(resultMessage);
+            if (playerScore > opponentScore) sounds.win.play();
+            else if (playerScore === opponentScore) sounds.draw.play();
+            else sounds.lose.play();
+        }
+    }
+    
+    function decideWinner(playerMove, aiMove) {
+        if (playerMove === aiMove) return "draw";
+        if ((playerMove === "rock" && aiMove === "scissors") ||
+            (playerMove === "paper" && aiMove === "rock") ||
+            (playerMove === "scissors" && aiMove === "paper")) {
+            return "player";
+        } else {
+            return "ai";
+        }
+    }
+    
+    function showPopup(message, roomId) {
+        const existingPopup = document.getElementById("roomPopup");
+        if (existingPopup) existingPopup.remove();
+    
+        const popup = document.createElement("div");
+        popup.id = "roomPopup";
+        popup.className = "popup-container";
+        popup.innerHTML = `
+            <h2>🏠 Room Created! Here's your room "ID"</h2>
+            <p class="room-id">Room ID: <span id="room-id-text">${roomId}</span></p>
+            <div class="popup-buttons">
+                <button class="copy-btn" onclick="copyRoomID('${roomId}')">📋 Copy</button>
+                <button class="close-btn" onclick="closePopup()">❌ Close</button>
             </div>
         `;
         document.body.appendChild(popup);
     }
-
+    
+    function copyRoomID(roomId) {
+        let text = document.getElementById("room-id-text").textContent.trim();
+        let extractedRoomId = text.split(": ").pop();
+        
+        navigator.clipboard.writeText(extractedRoomId).then(() => {
+            console.log(`✅ Room ID copied: ${extractedRoomId}`);
+        }).catch(err => {
+            alert("❌ Copy Failed!");
+            console.error(err);
+        });
+    }
+    
+    function closePopup() {
+        const popup = document.getElementById("roomPopup");
+        if (popup) popup.remove();
+    }
+    
+    document.addEventListener("keydown", function(event) {
+        if (event.key === "Escape") {
+            closePopup();
+        }
+    });
+    
+    // **Enhanced Sci-Fi End Popup**
+    function showEndPopup(message) {
+        const existingPopup = document.getElementById("endPopup");
+        if (existingPopup) existingPopup.remove();
+    
+        const popup = document.createElement("div");
+        popup.id = "endPopup";
+        popup.className = "popup-overlay end-popup fade-in";
+        
+        let extraClass = "";
+        let scoreText = `Final Score - You: ${playerScore} | ${isAIMode ? "AI" : "Opponent"}: ${opponentScore}`;
+        if (message.includes("Won")) extraClass = "win";
+        else if (message.includes("Lost")) extraClass = "lose";
+        else if (message.includes("Draw")) extraClass = "draw";
+        else extraClass = "disconnect";
+    
+        popup.innerHTML = `
+            <div class="popup ${extraClass}">
+                <h2>${message}</h2>
+                <p>${scoreText}</p>
+                <div class="popup-buttons">
+                    <button class="menu-btn" onclick="goToMenu()">🏠 Main Menu</button>
+                    <button class="menu-btn" onclick="retryGame()">🔄 Retry</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(popup);
+    }
+    
     window.goToMenu = () => {
-        document.querySelector(".popup-overlay").remove();
+        document.querySelector(".end-popup").remove();
         resetGame();
         document.getElementById("game").classList.add("hidden");
         document.getElementById("menu").classList.remove("hidden");
     };
-
+    
     window.retryGame = () => {
-        document.querySelector(".popup-overlay").remove();
+        document.querySelector(".end-popup").remove();
         resetGame();
         startGame();
+        if (isAIMode) {
+            showRoundPopup("Round 1 Started");
+            sounds.roundStart.play();
+        }
     };
-
-    // ESC Key to Close Popup
-    document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") closePopup();
-    });
-});
-
-console.log("🛠️ FINAL CLIENT FIX APPLIED - All Alerts Replaced with Popups!");
+    
+    console.log("🛠️");
